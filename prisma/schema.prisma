@@ -1,0 +1,250 @@
+// RyLis — Ryan & Lisa family OS
+// Postgres (Neon) for production; works locally too.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  loginId      String   @unique // "ryan" / "lisa"
+  name         String
+  emoji        String   @default("🌸")
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  // back-relations
+  devotions     Devotion[]
+  familyAltars  FamilyAltar[]
+  journals      JournalEntry[]
+  workouts      WorkoutLog[]
+  txns          Transaction[]
+  createdEvents Event[]         @relation("EventCreator")
+  eventAttend   EventAttendee[]
+  links         ImportantLink[]
+  vaults        VaultEntry[]
+}
+
+// ───────── 1. SPIRITUAL ─────────
+model Devotion {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  passage   String // e.g. "Mazmur 23:1-6"
+  version   String   @default("TB") // TB, BIS, NIV, etc.
+  insight   String // What God spoke / key takeaway
+  prayer    String?
+  mood      String? // 😊 😔 🔥 etc.
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model FamilyAltar {
+  id        String   @id @default(cuid())
+  date      DateTime
+  ledById   String // who led tonight
+  ledBy     User     @relation(fields: [ledById], references: [id])
+  passage   String
+  topic     String
+  notes     String
+  prayerFor String? // prayer points
+  createdAt DateTime @default(now())
+
+  @@index([date])
+}
+
+// ───────── 2. MENTAL ─────────
+model JournalEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  moodScore Int // 1-10
+  emotions  String // comma-separated tags: anxious,grateful,...
+  events    String // what happened today
+  reflection String
+  gratitude String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+// ───────── 3. FISIK ─────────
+model WorkoutLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  type      String // "Gym", "Running", "Yoga", "Bouldering"…
+  duration  Int // minutes
+  intensity String // low/medium/high
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model FitnessGoal {
+  id        String   @id @default(cuid())
+  ownerName String // "Ryan", "Lisa", "Both"
+  title     String
+  target    String // "Run 5k under 30min"
+  deadline  DateTime?
+  progress  Int       @default(0) // 0-100
+  done      Boolean   @default(false)
+  createdAt DateTime  @default(now())
+}
+
+// ───────── 4. FINANSIAL ─────────
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime
+  kind        String // "income" | "expense"
+  category    String // "Food", "Transport", "Salary"…
+  amount      Int // IDR, store as integer rupiah
+  description String
+  account     String? // "BCA", "Cash", "GoPay"
+  createdAt   DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model Budget {
+  id        String  @id @default(cuid())
+  month     String // "2026-06"
+  category  String
+  limit     Int // IDR
+  createdAt DateTime @default(now())
+
+  @@unique([month, category])
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+  name      String // "Tabungan BCA", "Reksadana Bibit"
+  kind      String // cash, investment, property, receivable
+  value     Int // current value in IDR
+  note      String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model FinancialGoal {
+  id         String    @id @default(cuid())
+  title      String // "DP Rumah", "Dana Pendidikan Anak"
+  targetAmt  Int
+  currentAmt Int       @default(0)
+  deadline   DateTime?
+  note       String?
+  createdAt  DateTime  @default(now())
+}
+
+// ───────── SHARED CALENDAR ─────────
+model Event {
+  id          String          @id @default(cuid())
+  title       String
+  description String?
+  category    String // spiritual | mental | fisik | finansial | family | work | personal
+  allDay      Boolean         @default(false)
+  startAt     DateTime
+  endAt       DateTime?
+  location    String?
+  googleEventId String?
+  createdById String
+  createdBy   User            @relation("EventCreator", fields: [createdById], references: [id])
+  attendees   EventAttendee[]
+  createdAt   DateTime        @default(now())
+
+  @@index([startAt])
+}
+
+model EventAttendee {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+// ───────── IMPORTANT LINKS ─────────
+model ImportantLink {
+  id         String   @id @default(cuid())
+  title      String
+  url        String
+  category   String // "Finance", "Health", "Shopping", "Work"…
+  note       String?
+  addedById  String
+  addedBy    User     @relation(fields: [addedById], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+// ───────── SHARED VAULT (account & password) ─────────
+// Stored as plain text (we already require passcode to view).
+// Suitable for personal use; rotate VAULT_PASSCODE often.
+model VaultEntry {
+  id         String   @id @default(cuid())
+  label      String // "Netflix Family", "WiFi Rumah"
+  username   String
+  password   String
+  url        String?
+  note       String?
+  addedById  String
+  addedBy    User     @relation(fields: [addedById], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ───────── VISION & WISHLIST ─────────
+//
+// A Vision is "the big picture" — the dream that anchors the next 1/5/10
+// years. A Wish is a concrete activity, place, or experience that ladders
+// up to it. Keeping them on one page lets us see "dream → next step."
+
+model Vision {
+  id          String   @id @default(cuid())
+  title       String // "Punya rumah sendiri di Yogyakarta"
+  description String
+  category    String   @default("life") // life | family | career | spiritual | financial
+  /// Either a Google Drive folder URL (carousel) or a single image URL.
+  driveUrl    String?
+  /// JSON array of cached Drive image ids — refreshed by /api/vision/refresh.
+  cachedImageIds String  @default("[]")
+  pinned      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Wish {
+  id        String    @id @default(cuid())
+  title     String // "Trip ke Jepang lihat sakura"
+  kind      String // activity | place | experience | thing
+  location  String? // "Kyoto, Jepang"
+  note      String?
+  priority  Int       @default(2) // 1=high, 2=medium, 3=low
+  targetBy  DateTime?
+  done      Boolean   @default(false)
+  doneAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+// ───────── BOARD GAME (Ryan's hobby) ─────────
+model BoardGame {
+  id        String   @id @default(cuid())
+  title     String
+  players   String? // "2-4"
+  rating    Int? // 1-10
+  status    String   @default("owned") // owned | wishlist | played
+  note      String?
+  createdAt DateTime @default(now())
+}
