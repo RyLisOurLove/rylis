@@ -120,22 +120,22 @@ export default function SharedCalendar({ people, meId }: { people: Person[]; meI
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="space-y-2">
         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button onClick={() => setCursor(startOfDay(new Date()))} className="btn-ghost !py-1 !text-xs">Hari ini</button>
           <div className="flex overflow-hidden rounded-lg border border-slate-200">
-            <button onClick={() => navigate(-1)} className="px-2 py-1 text-slate-500 hover:bg-slate-50">‹</button>
-            <button onClick={() => navigate(1)} className="border-l border-slate-200 px-2 py-1 text-slate-500 hover:bg-slate-50">›</button>
+            <button onClick={() => navigate(-1)} className="px-2.5 py-1.5 text-slate-500 hover:bg-slate-50">‹</button>
+            <button onClick={() => navigate(1)} className="border-l border-slate-200 px-2.5 py-1.5 text-slate-500 hover:bg-slate-50">›</button>
           </div>
           <div className="flex overflow-hidden rounded-lg border border-slate-200 text-xs font-medium">
             {(["day","week","month"] as View[]).map((v) => (
-              <button key={v} onClick={() => setView(v)} className={`px-2.5 py-1 capitalize ${view===v ? "bg-brand-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>
+              <button key={v} onClick={() => setView(v)} className={`px-2.5 py-1.5 capitalize ${view===v ? "bg-brand-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>
                 {v === "day" ? "Hari" : v === "week" ? "Minggu" : "Bulan"}
               </button>
             ))}
           </div>
-          <button onClick={() => openNew(new Date(new Date().setMinutes(0,0,0)))} className="btn-primary !py-1 !text-xs">+ Agenda</button>
+          <button onClick={() => openNew(new Date(new Date().setMinutes(0,0,0)))} className="btn-primary ml-auto !py-1.5 !text-xs">+ Agenda</button>
         </div>
       </div>
 
@@ -145,7 +145,7 @@ export default function SharedCalendar({ people, meId }: { people: Person[]; meI
           onOpen={openEdit} />
       ) : (
         <div className="flex flex-col gap-3 lg:flex-row">
-          <div className="lg:w-56 lg:shrink-0">
+          <div className="hidden lg:block lg:w-56 lg:shrink-0">
             <MiniMonth cursor={cursor} events={events} now={now} onPick={(d) => setCursor(startOfDay(d))} />
             <Legend />
           </div>

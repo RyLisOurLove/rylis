@@ -19,7 +19,7 @@ export default function VisionCarousel({
   if (imageIds.length === 0) return null;
 
   return (
-    <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900">
+    <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-900 sm:aspect-[16/9]">
       {imageIds.map((id, idx) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -52,14 +52,14 @@ export default function VisionCarousel({
         <>
           <button
             onClick={() => setI((x) => (x - 1 + imageIds.length) % imageIds.length)}
-            className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/20 p-2 text-white backdrop-blur hover:bg-white/30"
+            className="absolute left-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-lg text-white backdrop-blur hover:bg-white/30 sm:left-3"
             aria-label="Sebelumnya"
           >
             ‹
           </button>
           <button
             onClick={() => setI((x) => (x + 1) % imageIds.length)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/20 p-2 text-white backdrop-blur hover:bg-white/30"
+            className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-lg text-white backdrop-blur hover:bg-white/30 sm:right-3"
             aria-label="Berikutnya"
           >
             ›

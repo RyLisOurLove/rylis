@@ -56,7 +56,7 @@ export default function VisionTabs({
 
   return (
     <>
-      <div className="flex gap-1 rounded-lg border border-slate-200 bg-white/60 p-1 shadow-sm w-fit">
+      <div className="flex gap-1 rounded-lg border border-slate-200 bg-white/60 p-1 shadow-sm">
         <TabButton on={tab === "vision"} onClick={() => setTab("vision")} emoji="🌅" label="Vision Besar" />
         <TabButton on={tab === "wishlist"} onClick={() => setTab("wishlist")} emoji="📝" label="Wishlist" />
       </div>
@@ -74,12 +74,12 @@ function TabButton({ on, onClick, emoji, label }: { on: boolean; onClick: () => 
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+      className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition sm:flex-none ${
         on ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"
       }`}
     >
       <span>{emoji}</span>
-      {label}
+      <span>{label}</span>
     </button>
   );
 }
