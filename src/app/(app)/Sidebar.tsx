@@ -9,9 +9,21 @@ type NavGroup = { id: string; label: string; items: NavItem[] };
 
 const GROUPS: NavGroup[] = [
   {
-    id: "home",
-    label: "",
-    items: [{ href: "/", label: "Dashboard", emoji: "🏠" }],
+    id: "daily",
+    label: "Daily",
+    items: [
+      { href: "/today", label: "Today", emoji: "🌅" },
+      { href: "/", label: "Dashboard", emoji: "🏠" },
+    ],
+  },
+  {
+    id: "productivity",
+    label: "Productivity",
+    items: [
+      { href: "/phase", label: "Life Phase", emoji: "🌊" },
+      { href: "/pipeline", label: "Pipeline", emoji: "📊" },
+      { href: "/agent", label: "Agent Setup", emoji: "🤖" },
+    ],
   },
   {
     id: "pillars",

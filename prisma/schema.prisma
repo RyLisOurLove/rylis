@@ -28,6 +28,130 @@ model User {
   eventAttend   EventAttendee[]
   links         ImportantLink[]
   vaults        VaultEntry[]
+  agentTokens   AgentToken[]
+  dailyLogs     DailyLog[]
+  priorities    Priority[]
+}
+
+// ───────── AGENT INFRASTRUCTURE ─────────
+//
+// Token-based access for Claude.ai (or any external agent) to read/write
+// RyLis data via /api/agent/*. Each token is scoped to one user — Ryan's
+// agent sees Ryan's data + shared data, Lisa's sees Lisa's + shared.
+
+model AgentToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String    @unique // bearer token, 32 hex chars
+  label      String // "Claude.ai Web", "Claude Desktop", etc
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+// ───────── LIFE PHASE — context that drives every recommendation ─────────
+//
+// At any time exactly one phase is active. The agent reads the active phase
+// to know "what life looks like right now" — what jobs are running, what
+// the income target is, what energy levels typically are, what's the main
+// constraint. When situation changes (job lost, baby coming, moving), end
+// the current phase and start a new one. History stays for retrospection.
+
+model LifePhase {
+  id           String    @id @default(cuid())
+  name         String // "Two-job phase", "Job loss & side hustle hunt"
+  active       Boolean   @default(true)
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+
+  // Context the agent uses for every suggestion
+  situation    String // free-text: what's happening right now in life
+  currentWork  String // active jobs/projects with rough hours per week
+  goals        String // top 3-5 goals for this phase
+  constraints  String // what's hard / non-negotiable
+  energyLevel  String   @default("medium") // high | medium | low
+
+  // Revenue context
+  incomeTargetIdr Int?  // monthly income target IDR
+  incomeFloorIdr  Int?  // minimum needed to survive
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+}
+
+// ───────── OPPORTUNITY PIPELINE (revenue) ─────────
+
+model Opportunity {
+  id             String    @id @default(cuid())
+  title          String // "Branding Tour Bali Jasa"
+  kind           String // lead | proposal | negotiation | retainer | product
+  source         String? // referral | inbound | outbound | network | repeat
+  ownerName      String   @default("Ryan") // Ryan | Lisa | Both
+  estimatedValue Int // IDR
+  probability    Int       @default(50) // 0-100 (drag toward 100 as confidence grows)
+  stage          String    @default("lead") // lead | qualified | proposal | negotiation | won | lost
+
+  // Pipeline hygiene — agent uses these to surface stale opportunities
+  nextAction   String? // "Follow up via WA"
+  nextActionAt DateTime?
+
+  notes       String?
+  contactName String?
+  contactInfo String? // phone | email | IG handle
+
+  closedAt DateTime?
+  closedAs String? // won | lost
+  closedNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stage])
+  @@index([nextActionAt])
+}
+
+// ───────── DAILY PRIORITIES (top-3 per day) ─────────
+//
+// Following the "3 things rule" — every day starts with at most 3 priorities.
+// The agent helps formulate them in the morning, holds you accountable at
+// night. Done/undone history becomes weekly insight.
+
+model Priority {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime // the calendar day this belongs to
+  rank      Int // 1, 2, or 3
+  title     String
+  pillar    String // spiritual | mental | fisik | finansial | revenue | personal | family
+  /// Optional pointer back to an opportunity, so completing a priority can
+  /// also nudge a pipeline action.
+  opportunityId String?
+  done      Boolean   @default(false)
+  doneAt    DateTime?
+  note      String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, date])
+}
+
+// ───────── DAILY LOG (MoM, accomplishments, blockers, raw notes) ─────────
+
+model DailyLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  kind      String // meeting | accomplishment | blocker | note | mom | decision
+  title     String
+  body      String
+  tag       String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
 }
 
 // ───────── 1. SPIRITUAL ─────────

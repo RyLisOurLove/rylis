@@ -9,9 +9,21 @@ type NavGroup = { id: string; label: string; items: NavItem[] };
 
 const GROUPS: NavGroup[] = [
   {
-    id: "home",
-    label: "",
-    items: [{ href: "/", label: "Dashboard", emoji: "🏠" }],
+    id: "daily",
+    label: "Daily",
+    items: [
+      { href: "/today", label: "Today", emoji: "🌅" },
+      { href: "/", label: "Dashboard", emoji: "🏠" },
+    ],
+  },
+  {
+    id: "productivity",
+    label: "Productivity",
+    items: [
+      { href: "/phase", label: "Life Phase", emoji: "🌊" },
+      { href: "/pipeline", label: "Pipeline", emoji: "📊" },
+      { href: "/agent", label: "Agent Setup", emoji: "🤖" },
+    ],
   },
   {
     id: "pillars",
@@ -40,14 +52,13 @@ const GROUPS: NavGroup[] = [
   },
 ];
 
-// 5-item bottom bar — the daily-use destinations. Vision lives in the drawer
-// (still 1 tap away). Finansial stays here because budget tracking is daily.
+// 5-item bottom bar — the daily-use destinations.
 const BOTTOM: NavItem[] = [
-  { href: "/", emoji: "🏠", label: "Home" },
+  { href: "/today", emoji: "🌅", label: "Today" },
+  { href: "/pipeline", emoji: "📊", label: "Pipeline" },
   { href: "/spiritual", emoji: "🙏", label: "Spirit" },
-  { href: "/mental", emoji: "🧠", label: "Mental" },
-  { href: "/fisik", emoji: "💪", label: "Fisik" },
   { href: "/finansial", emoji: "💰", label: "Uang" },
+  { href: "/agent", emoji: "🤖", label: "Agent" },
 ];
 
 export default function MobileNav({
