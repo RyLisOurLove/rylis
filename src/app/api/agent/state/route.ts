@@ -40,6 +40,8 @@ export async function GET(req: Request) {
     activeWishes,
     activeFitnessGoals,
     financialGoals,
+    monthBudgets,
+    assets,
   ] = await Promise.all([
     prisma.lifePhase.findFirst({ where: { active: true } }),
     prisma.priority.findMany({
@@ -105,6 +107,10 @@ export async function GET(req: Request) {
       where: { done: false },
     }),
     prisma.financialGoal.findMany(),
+    prisma.budget.findMany({
+      where: { month: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}` },
+    }),
+    prisma.asset.findMany(),
   ]);
 
   const income = monthTxns.filter((t) => t.kind === "income").reduce((a, b) => a + b.amount, 0);
@@ -120,6 +126,18 @@ export async function GET(req: Request) {
     (a, o) => a + Math.round((o.estimatedValue * o.probability) / 100),
     0,
   );
+
+  // Runway projection — fixed income vs planned burn (budget total) vs liquid assets
+  const plannedBurn = monthBudgets.reduce((a, b) => a + b.limit, 0);
+  const liquidAssets = assets
+    .filter((a) => a.kind === "cash" || a.kind === "investment")
+    .reduce((a, b) => a + b.value, 0);
+  const fixedIncome = phase?.fixedIncomeIdr ?? null;
+  const monthlyGap = fixedIncome !== null && plannedBurn > 0 ? fixedIncome - plannedBurn : null;
+  const runwayMonths =
+    monthlyGap !== null && monthlyGap < 0 && liquidAssets > 0
+      ? Math.round((liquidAssets / -monthlyGap) * 10) / 10
+      : null;
 
   // Days until end of month (useful for revenue pacing)
   const daysLeftInMonth = Math.ceil((nextMonth.getTime() - now.getTime()) / 86400000);
@@ -140,6 +158,17 @@ export async function GET(req: Request) {
     } else if (incomePct >= 100) {
       insights.push(`🎉 Target income tercapai (${incomePct}%)! Surplus: ${formatIdr(income - phase.incomeTargetIdr)}.`);
     }
+  }
+  if (monthlyGap !== null && monthlyGap < 0) {
+    insights.push(
+      `🛟 Defisit struktural ${formatIdr(-monthlyGap)}/bulan (fixed income ${formatIdr(fixedIncome!)} vs planned burn ${formatIdr(plannedBurn)}).${
+        runwayMonths !== null
+          ? ` Runway: ${runwayMonths} bulan dengan aset likuid ${formatIdr(liquidAssets)}.`
+          : liquidAssets === 0
+            ? " Aset likuid Rp 0 — SETIAP bulan harus break even dari income tambahan."
+            : ""
+      } Butuh income tambahan ≥ ${formatIdr(-monthlyGap)}/bulan untuk break even.`,
+    );
   }
   if (pipelineStale.length > 0) {
     insights.push(
@@ -177,6 +206,7 @@ export async function GET(req: Request) {
           energyLevel: phase.energyLevel,
           incomeTargetIdr: phase.incomeTargetIdr,
           incomeFloorIdr: phase.incomeFloorIdr,
+          fixedIncomeIdr: phase.fixedIncomeIdr,
           startedAt: phase.startedAt.toISOString(),
         }
       : null,
@@ -229,6 +259,10 @@ export async function GET(req: Request) {
       expense_by_category: expenseByCat,
       days_left_in_month: daysLeftInMonth,
       month_progress_pct: monthProgress,
+      planned_burn_idr: plannedBurn,
+      liquid_assets_idr: liquidAssets,
+      monthly_gap_idr: monthlyGap,
+      runway_months: runwayMonths,
       financial_goals: financialGoals.map((g) => ({
         title: g.title,
         target_idr: g.targetAmt,

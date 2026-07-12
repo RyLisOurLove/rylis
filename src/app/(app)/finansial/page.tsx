@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { fmtDate, idr, monthKey, toInputDate } from "@/lib/fmt";
@@ -8,7 +9,7 @@ export default async function FinansialPage() {
   const mk = monthKey(new Date());
   const startOfMonth = new Date(`${mk}-01T00:00:00`);
 
-  const [txns, budgets, assets, goals, allTxns] = await Promise.all([
+  const [txns, budgets, assets, goals, allTxns, phase] = await Promise.all([
     prisma.transaction.findMany({
       where: { date: { gte: startOfMonth } },
       orderBy: { date: "desc" },
@@ -18,12 +19,25 @@ export default async function FinansialPage() {
     prisma.asset.findMany({ orderBy: { value: "desc" } }),
     prisma.financialGoal.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.transaction.findMany({ orderBy: { date: "desc" }, take: 20, include: { user: true } }),
+    prisma.lifePhase.findFirst({ where: { active: true } }),
   ]);
 
   const income = txns.filter((t) => t.kind === "income").reduce((a, b) => a + b.amount, 0);
   const expense = txns.filter((t) => t.kind === "expense").reduce((a, b) => a + b.amount, 0);
   const net = income - expense;
   const totalAssets = assets.reduce((a, b) => a + b.value, 0);
+
+  // Survival projection — driven by Life Phase fixed income vs planned burn.
+  const plannedBurn = budgets.reduce((a, b) => a + b.limit, 0);
+  const liquidAssets = assets
+    .filter((a) => a.kind === "cash" || a.kind === "investment")
+    .reduce((a, b) => a + b.value, 0);
+  const fixedIncome = phase?.fixedIncomeIdr ?? null;
+  const monthlyGap = fixedIncome !== null && plannedBurn > 0 ? fixedIncome - plannedBurn : null;
+  const runwayMonths =
+    monthlyGap !== null && monthlyGap < 0 && liquidAssets > 0
+      ? Math.round((liquidAssets / -monthlyGap) * 10) / 10
+      : null;
 
   // budget spending by category this month
   const spentByCat = txns
@@ -59,6 +73,11 @@ export default async function FinansialPage() {
       update: { limit },
       create: { month, category, limit },
     });
+    revalidatePath("/finansial");
+  }
+  async function delBudget(formData: FormData) {
+    "use server";
+    await prisma.budget.delete({ where: { id: String(formData.get("id")) } });
     revalidatePath("/finansial");
   }
   async function addAsset(formData: FormData) {
@@ -118,6 +137,69 @@ export default async function FinansialPage() {
         <Stat label="Net cashflow" value={idr(net)} tone={net >= 0 ? "emerald" : "rose"} />
         <Stat label="Total aset" value={idr(totalAssets)} tone="violet" />
       </div>
+
+      {/* Survival projection — visible whenever a Life Phase is set */}
+      {phase && (
+        <section className="card overflow-hidden">
+          <div className="border-b border-slate-200 bg-gradient-to-r from-amber-50 to-rose-50 px-5 py-3">
+            <h2 className="text-lg font-semibold text-slate-900">🛟 Proyeksi Survival</h2>
+            <p className="text-xs text-slate-600">
+              Berdasarkan fase{" "}
+              <Link href="/phase" className="font-medium text-brand-700 hover:underline">
+                {phase.name}
+              </Link>
+            </p>
+          </div>
+          <div className="grid gap-4 p-5 sm:grid-cols-3">
+            <ProjItem
+              label="Fixed income / bulan"
+              value={fixedIncome !== null ? idr(fixedIncome) : "—"}
+              hint={fixedIncome === null ? "Set di Life Phase" : undefined}
+            />
+            <ProjItem
+              label={`Planned burn (budget ${mk})`}
+              value={plannedBurn > 0 ? idr(plannedBurn) : "—"}
+              hint={plannedBurn === 0 ? "Set budget dulu di bawah" : undefined}
+            />
+            <ProjItem
+              label="Gap bulanan"
+              value={monthlyGap !== null ? `${monthlyGap >= 0 ? "+" : "−"}${idr(Math.abs(monthlyGap))}` : "—"}
+              tone={monthlyGap !== null ? (monthlyGap >= 0 ? "good" : "bad") : undefined}
+            />
+            <ProjItem label="Aset likuid (cash + investasi)" value={idr(liquidAssets)} />
+            <ProjItem
+              label="Runway"
+              value={
+                monthlyGap === null
+                  ? "—"
+                  : monthlyGap >= 0
+                    ? "∞ (cashflow positif)"
+                    : runwayMonths !== null
+                      ? `${runwayMonths} bulan`
+                      : "0 bulan — tanpa buffer"
+              }
+              tone={
+                monthlyGap === null
+                  ? undefined
+                  : monthlyGap >= 0 || (runwayMonths !== null && runwayMonths >= 6)
+                    ? "good"
+                    : "bad"
+              }
+            />
+            <ProjItem
+              label="Income tambahan untuk break-even"
+              value={monthlyGap !== null && monthlyGap < 0 ? `≥ ${idr(-monthlyGap)} / bulan` : "Tidak perlu 🎉"}
+              tone={monthlyGap !== null && monthlyGap < 0 ? "bad" : "good"}
+            />
+          </div>
+          {monthlyGap !== null && monthlyGap < 0 && (
+            <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-3 text-xs text-slate-600">
+              💡 Setiap pemasukan tambahan yang tercatat akan memperlihatkan progress menuju break-even.
+              Catat semua transaksi supaya proyeksi makin akurat, dan update nilai aset secara berkala.
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Add transaction */}
       <section className="card p-5">
@@ -184,10 +266,18 @@ export default async function FinansialPage() {
               const over = spent > b.limit;
               return (
                 <li key={b.id}>
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between gap-2 text-sm">
                     <span className="font-medium text-slate-800">{b.category}</span>
-                    <span className={over ? "text-rose-600 font-semibold" : "text-slate-600"}>
-                      {idr(spent)} / {idr(b.limit)} ({pct}%)
+                    <span className="flex items-center gap-2">
+                      <span className={over ? "text-rose-600 font-semibold" : "text-slate-600"}>
+                        {idr(spent)} / {idr(b.limit)} ({pct}%)
+                      </span>
+                      <form action={delBudget}>
+                        <input type="hidden" name="id" value={b.id} />
+                        <button className="text-slate-300 transition hover:text-rose-500" title="Hapus budget" aria-label={`Hapus budget ${b.category}`}>
+                          ✕
+                        </button>
+                      </form>
                     </span>
                   </div>
                   <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
@@ -343,6 +433,26 @@ export default async function FinansialPage() {
           </ul>
         )}
       </section>
+    </div>
+  );
+}
+
+function ProjItem({
+  label, value, hint, tone,
+}: {
+  label: string; value: string; hint?: string; tone?: "good" | "bad";
+}) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+      <p
+        className={`mt-1 text-lg font-bold ${
+          tone === "good" ? "text-emerald-700" : tone === "bad" ? "text-rose-700" : "text-slate-900"
+        }`}
+      >
+        {value}
+      </p>
+      {hint && <p className="text-[11px] text-slate-400">{hint}</p>}
     </div>
   );
 }

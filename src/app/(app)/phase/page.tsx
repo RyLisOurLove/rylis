@@ -34,6 +34,7 @@ export default async function PhasePage() {
         energyLevel: String(formData.get("energyLevel") || "medium"),
         incomeTargetIdr: formData.get("incomeTargetIdr") ? Number(formData.get("incomeTargetIdr")) : null,
         incomeFloorIdr: formData.get("incomeFloorIdr") ? Number(formData.get("incomeFloorIdr")) : null,
+        fixedIncomeIdr: formData.get("fixedIncomeIdr") ? Number(formData.get("fixedIncomeIdr")) : null,
         notes: String(formData.get("notes") || "") || null,
       },
     });
@@ -68,6 +69,9 @@ export default async function PhasePage() {
             <Field label="Pekerjaan aktif" value={active.currentWork} />
             <Field label="Goals fase ini" value={active.goals} />
             <Field label="Constraints / non-negotiable" value={active.constraints} />
+            {active.fixedIncomeIdr && (
+              <Field label="Fixed income saat ini" value={`Rp ${active.fixedIncomeIdr.toLocaleString("id-ID")}`} />
+            )}
             {active.incomeTargetIdr && (
               <Field label="Target income/bulan" value={`Rp ${active.incomeTargetIdr.toLocaleString("id-ID")}`} />
             )}
@@ -154,6 +158,11 @@ export default async function PhasePage() {
               <option value="medium">Medium — paced work, normal</option>
               <option value="low">Low — recovery mode, batasi commitment</option>
             </select>
+          </div>
+
+          <div>
+            <label className="label">Fixed income saat ini (IDR/bulan)</label>
+            <input type="number" name="fixedIncomeIdr" placeholder="4500000" className="input" />
           </div>
 
           <div>

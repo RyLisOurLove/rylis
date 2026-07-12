@@ -74,6 +74,7 @@ model LifePhase {
   // Revenue context
   incomeTargetIdr Int?  // monthly income target IDR
   incomeFloorIdr  Int?  // minimum needed to survive
+  fixedIncomeIdr  Int?  // guaranteed/fixed income per month — drives runway projection
 
   notes     String?
   createdAt DateTime @default(now())

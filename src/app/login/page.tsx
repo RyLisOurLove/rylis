@@ -58,10 +58,6 @@ export default async function LoginPage({
           </div>
           <button className="btn-primary w-full !py-2.5">Masuk</button>
         </form>
-
-        <p className="mt-6 text-center text-[11px] text-slate-400">
-          Default: ryan / ryan123 · lisa / lisa123
-        </p>
       </div>
     </main>
   );

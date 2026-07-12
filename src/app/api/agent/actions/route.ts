@@ -207,6 +207,7 @@ export async function POST(req: Request) {
             energyLevel: String(body.energyLevel || "medium"),
             incomeTargetIdr: body.incomeTargetIdr ? Number(body.incomeTargetIdr) : null,
             incomeFloorIdr: body.incomeFloorIdr ? Number(body.incomeFloorIdr) : null,
+            fixedIncomeIdr: body.fixedIncomeIdr ? Number(body.fixedIncomeIdr) : null,
             notes: body.notes ? String(body.notes) : null,
           },
         });

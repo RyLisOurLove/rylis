@@ -51,7 +51,7 @@ Available actions:
 - \`add_event\` — { title, category, startAt (ISO), endAt?, allDay?, location?, attendees? }
 - \`add_opportunity\` — { title, kind, owner, estimatedValue, probability?, stage?, nextAction?, nextActionAt?, contactName? }
 - \`update_opportunity\` — { id, stage?, probability?, nextAction?, nextActionAt?, closedAs? }
-- \`set_phase\` — { name, situation, currentWork, goals, constraints, energyLevel?, incomeTargetIdr?, incomeFloorIdr? }
+- \`set_phase\` — { name, situation, currentWork, goals, constraints, energyLevel?, incomeTargetIdr?, incomeFloorIdr?, fixedIncomeIdr? }
 - \`add_wish\` — { title, kind, priority?, location?, note?, targetBy? }
 
 \`\`\`
